@@ -1,0 +1,46 @@
+syntax = "proto3";
+option java_package = "bubbling_rainwater.self_controlled_dataplane";
+option java_outer_classname = "DataplaneProtos";
+option java_generate_equals_and_hash = true;
+
+package bubbling_rainwater.common;
+
+
+message PhysicalNode {
+  string address = 1;
+  string faultZone = 2;
+}
+
+message Chain {
+  bytes id = 1;
+  repeated PhysicalNode nodes = 2;
+  uint64 chainEpoch = 3;
+}
+
+message LogicalPartition {
+  uint64 id = 1;
+  uint64 hashPartition = 2;
+}
+
+message LogicalChain {
+  LogicalPartition logicalPartition = 1;
+  Chain chain = 2;
+}
+
+message CatalogNamespace {
+  string accountId = 1;
+  string catalog = 2;
+  string namespace = 3;
+}
+
+message WideChainRing {
+  CatalogNamespace catalogNamespace = 1;
+  LogicalPartition author = 2;
+  repeated LogicalChain logicalChains = 3;
+}
+
+message UpsertChainRequest {
+  Chain chain = 1;
+  // the upsert will fail if the chain epoch isn't exactly this value
+  uint64 expectedChainEpoch = 2;
+}

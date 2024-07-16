@@ -1,0 +1,68 @@
+version: '3.3'
+services:
+  minio:
+    image: minio/minio
+    container_name: minio
+    environment:
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=password
+      - MINIO_DOMAIN=minio
+    networks:
+      bubbling_net:
+        aliases:
+          - rainwater.minio
+    ports:
+      - 9001:9001
+      - 9000:9000
+    command: ["server", "/data", "--console-address", ":9001"]
+  mc:
+    depends_on:
+      - minio
+    image: minio/mc
+    container_name: mc
+    networks:
+      bubbling_net:
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+    entrypoint: >
+      /bin/sh -c "
+      until (/usr/bin/mc config host add minio http://minio:9000 admin password) do echo '...waiting...' && sleep 1; done;
+      /usr/bin/mc rm -r --force minio/rainwater;
+      /usr/bin/mc mb minio/rainwater;
+      /usr/bin/mc policy set public minio/rainwater;
+      tail -f /dev/null
+      "
+  cargo-compiler:
+    image: rust:1.80.0
+    container_name: cargo-compiler
+    working_dir: /usr/src/myapp
+    volumes:
+      - ./src/rust-src:/usr/src/myapp
+  # This is a dockerfile which compiles rust and deploys it. Typically, you wouldn't combine these,
+  # but it is named cowgirl because of my individualism despite being off the ranch.
+  java-cowgirl:
+    build:
+      context: ./src/java-src
+      dockerfile: Dockerfile
+    stop_signal: SIGTERM
+    ports:
+      - 9003:9003
+    volumes:
+      - .:/usr/src/myapp
+    depends_on:
+      - minio
+  rusty-cowgirl:
+    build:
+      context: ./src/rust-src
+      dockerfile: Dockerfile
+    stop_signal: SIGTERM
+    ports:
+      - 9002:9002
+    volumes:
+      - .:/usr/src/myapp
+    depends_on:
+      - minio
+networks:
+  bubbling_net:
